@@ -1,0 +1,14 @@
+{
+  "name": "skillvault-oracle",
+  "version": "1.0.0",
+  "description": "AI Safety Oracle for SkillVault — single Oracle with 3-source majority vote",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "dotenv": "^16.0.0",
+    "ethers": "^6.7.0"
+  }
+}

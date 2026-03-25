@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillVault — AI Skill Safety Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-deep:   #07070f;
+      --bg-base:   #0b0b16;
+      --bg-card:   #12121e;
+      --bg-raised: #1a1a2a;
+      --bg-hover:  #21213a;
+
+      --border-dim:  rgba(255,255,255,0.05);
+      --border-base: rgba(255,255,255,0.09);
+      --border-hi:   rgba(255,255,255,0.18);
+
+      --text-hi:   #eeeef8;
+      --text-base: #9090b8;
+      --text-dim:  #4a4a6a;
+
+      --c-safe:      #00d98a;
+      --c-pending:   #f0b429;
+      --c-danger:    #ff4565;
+      --c-submit:    #4d9fff;
+      --c-challenge: #ff7a2f;
+
+      --lime:     #b3ff4e;
+      --lime-dim: rgba(179,255,78,0.12);
+
+      --radius-sm: 4px;
+      --radius:    8px;
+      --radius-lg: 12px;
+
+      --mono:    'IBM Plex Mono', monospace;
+      --display: 'Bricolage Grotesque', sans-serif;
+      --trans:   200ms ease;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(179,255,78,0.04) 0%, transparent 70%),
+        radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+      background-size: 100% 100%, 28px 28px;
+      color: var(--text-hi);
+      font-family: var(--mono);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0 20px;
+      border-bottom: 1px solid var(--border-dim);
+      margin-bottom: 16px;
+    }
+
+    .logo { display: flex; align-items: center; gap: 10px; }
+
+    .logo-icon {
+      width: 34px; height: 34px;
+      border: 2px solid var(--lime);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--lime); font-size: 17px; flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-family: var(--display);
+      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .logo-text span { color: var(--lime); }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    .network-badge {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-base);
+      border-radius: 20px;
+      font-size: 11px; color: var(--text-base);
+    }
+
+    .net-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--c-danger);
+    }
+    .net-dot.on { background: var(--c-safe); animation: pulse 2s ease-in-out infinite; }
+
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+
+    .wallet-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-sm);
+      font-family: var(--mono); font-size: 12px; color: var(--text-hi);
+      cursor: pointer; transition: all var(--trans);
+    }
+    .wallet-btn:hover { border-color: var(--lime); color: var(--lime); }
+
+    .w-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--c-danger); flex-shrink: 0;
+    }
+    .w-dot.on { background: var(--c-safe); }
+
+    /* ── BALANCE BAR ── */
+    #balanceBar {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0 14px;
+      border-bottom: 1px solid var(--border-dim);
+      margin-bottom: 20px;
+    }
+
+    .bal-pill {
+      padding: 4px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-sm);
+      font-size: 12px; color: var(--text-base);
+    }
+    .bal-pill span { color: var(--text-hi); }
+
+    /* ── NAV TABS ── */
+    .nav-tabs {
+      display: flex; gap: 2px;
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border-dim);
+    }
+
+    .nav-tab {
+      position: relative;
+      padding: 10px 22px;
+      font-family: var(--mono); font-size: 12px; font-weight: 500;
+      color: var(--text-dim);
+      cursor: pointer; background: none; border: none;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      transition: color var(--trans);
+    }
+    .nav-tab::after {
+      content: ''; position: absolute;
+      bottom: -1px; left: 0; right: 0; height: 2px;
+      background: var(--lime);
+      transform: scaleX(0); transition: transform var(--trans);
+    }
+    .nav-tab:hover { color: var(--text-base); }
+    .nav-tab.active { color: var(--lime); }
+    .nav-tab.active::after { transform: scaleX(1); }
+
+    /* ── SECTIONS ── */
+    .section { display: none; }
+    .section.active { display: block; animation: fadeUp 220ms ease; }
+
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(8px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-family: var(--display);
+      font-size: 28px; font-weight: 800; letter-spacing: -0.5px;
+    }
+
+    .section-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ── BUTTONS ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 18px;
+      border-radius: var(--radius-sm);
+      font-family: var(--mono); font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all var(--trans);
+      border: none; text-decoration: none; white-space: nowrap;
+    }
+    .btn-primary { background: var(--lime); color: #08080f; }
+    .btn-primary:hover { background: #c8ff72; transform: translateY(-1px); }
+    .btn-ghost {
+      background: var(--bg-raised); color: var(--text-hi);
+      border: 1px solid var(--border-base);
+    }
+    .btn-ghost:hover { border-color: var(--border-hi); background: var(--bg-hover); }
+    .btn-danger {
+      background: rgba(255,69,101,.1); color: var(--c-danger);
+      border: 1px solid rgba(255,69,101,.25);
+    }
+    .btn-danger:hover { background: rgba(255,69,101,.18); border-color: var(--c-danger); }
+    .btn:disabled { opacity:.4; cursor:not-allowed; transform:none !important; }
+
+    /* ── FILTER CHIPS ── */
+    .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+
+    .chip {
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-family: var(--mono); font-size: 11px;
+      cursor: pointer;
+      background: var(--bg-card); color: var(--text-base);
+      border: 1px solid var(--border-base);
+      transition: all var(--trans);
+    }
+    .chip:hover { border-color: var(--border-hi); color: var(--text-hi); }
+    .chip.active {
+      background: var(--lime-dim); color: var(--lime);
+      border-color: rgba(179,255,78,.3);
+    }
+
+    /* ── SKILL CARDS ── */
+    .skills-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 16px;
+    }
+
+    .skill-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      transition: all 250ms ease;
+      position: relative; overflow: hidden;
+    }
+    .skill-card::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; right: 0; height: 2px;
+      opacity: 0; transition: opacity var(--trans);
+    }
+    .skill-card:hover { border-color: var(--border-hi); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+    .skill-card:hover::before { opacity: 1; }
+
+    .skill-card[data-status="4"]::before { background: var(--c-safe); }
+    .skill-card[data-status="4"]:hover  { box-shadow: 0 8px 32px rgba(0,217,138,.07); }
+    .skill-card[data-status="2"]::before { background: var(--c-pending); }
+    .skill-card[data-status="1"]::before,
+    .skill-card[data-status="5"]::before { background: var(--c-danger); }
+    .skill-card[data-status="0"]::before { background: var(--c-submit); }
+    .skill-card[data-status="3"]::before { background: var(--c-challenge); }
+
+    .card-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 10px; font-weight: 500;
+      letter-spacing: .1em; text-transform: uppercase;
+    }
+    .bdot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+    .b-safe      { background:rgba(0,217,138,.1);   color:var(--c-safe);      border:1px solid rgba(0,217,138,.2); }
+    .b-safe .bdot { background:var(--c-safe); }
+    .b-pending   { background:rgba(240,180,41,.1);  color:var(--c-pending);   border:1px solid rgba(240,180,41,.2); }
+    .b-pending .bdot { background:var(--c-pending); animation:pulse 1.5s ease-in-out infinite; }
+    .b-danger    { background:rgba(255,69,101,.1);  color:var(--c-danger);    border:1px solid rgba(255,69,101,.2); }
+    .b-danger .bdot { background:var(--c-danger); }
+    .b-submit    { background:rgba(77,159,255,.1);  color:var(--c-submit);    border:1px solid rgba(77,159,255,.2); }
+    .b-submit .bdot { background:var(--c-submit); animation:pulse 1.5s ease-in-out infinite; }
+    .b-challenged{ background:rgba(255,122,47,.1);  color:var(--c-challenge); border:1px solid rgba(255,122,47,.2); }
+    .b-challenged .bdot { background:var(--c-challenge); animation:pulse 1s ease-in-out infinite; }
+
+    .skill-id { font-size: 11px; color: var(--text-dim); }
+
+    .skill-name {
+      font-family: var(--display);
+      font-size: 19px; font-weight: 700; letter-spacing: -.3px;
+      line-height: 1.2; margin-bottom: 14px; color: var(--text-hi);
+    }
+
+    .skill-meta { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+
+    .meta-row { display: flex; gap: 8px; font-size: 11px; }
+    .ml { color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; min-width: 76px; flex-shrink: 0; }
+    .mv { color: var(--text-base); }
+    .mv.cp { cursor: pointer; transition: color var(--trans); }
+    .mv.cp:hover { color: var(--text-hi); }
+
+    .card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ── EMPTY / CONNECT PROMPTS ── */
+    .empty {
+      text-align: center; padding: 80px 24px; color: var(--text-dim);
+    }
+    .empty-icon { font-size: 44px; margin-bottom: 14px; opacity: .3; }
+    .empty p { font-size: 13px; }
+
+    .connect-prompt {
+      text-align: center; padding: 64px 24px; color: var(--text-dim);
+    }
+    .connect-prompt h3 {
+      font-family: var(--display); font-size: 22px; font-weight: 700;
+      color: var(--text-base); margin-bottom: 8px;
+    }
+    .connect-prompt p { font-size: 13px; margin-bottom: 24px; }
+
+    /* ── SKELETON ── */
+    .sk-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+      gap: 16px;
+    }
+    .sk-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 20px; height: 200px;
+    }
+    .sk-line {
+      background: linear-gradient(90deg, var(--bg-raised) 25%, var(--bg-hover) 50%, var(--bg-raised) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-sm);
+      height: 12px; margin-bottom: 10px;
+    }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* ── SUBMIT FORM ── */
+    .submit-layout {
+      display: grid;
+      grid-template-columns: 1fr 330px;
+      gap: 24px; align-items: start;
+    }
+    @media (max-width: 720px) { .submit-layout { grid-template-columns: 1fr; } }
+
+    .step-flow {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 28px; font-size: 11px; color: var(--text-dim);
+      flex-wrap: wrap;
+    }
+    .step { display: flex; align-items: center; gap: 6px; }
+    .snum {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--bg-raised); border: 1px solid var(--border-base);
+      display: flex; align-items: center; justify-content: center; font-size: 10px;
+    }
+    .step.active .snum { background: var(--lime-dim); border-color: var(--lime); color: var(--lime); }
+    .step.done  .snum { background: rgba(0,217,138,.1); border-color: var(--c-safe); color: var(--c-safe); }
+    .step-arr { color: var(--text-dim); }
+
+    .form-group { margin-bottom: 20px; }
+    .form-label {
+      display: block; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .1em;
+      color: var(--text-dim); margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-family: var(--mono); font-size: 14px; color: var(--text-hi);
+      transition: border-color var(--trans); outline: none;
+    }
+    .form-input:focus { border-color: var(--lime); box-shadow: 0 0 0 2px var(--lime-dim); }
+    .form-input::placeholder { color: var(--text-dim); }
+
+    .dropzone {
+      border: 2px dashed var(--border-base);
+      border-radius: var(--radius-lg);
+      padding: 56px 40px;
+      text-align: center; cursor: pointer;
+      transition: all var(--trans);
+      background: var(--bg-card);
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.over { border-color: var(--lime); background: var(--lime-dim); }
+    .dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .dz-icon { font-size: 40px; margin-bottom: 10px; opacity: .45; }
+    .dz-text { font-size: 14px; color: var(--text-base); margin-bottom: 4px; }
+    .dz-sub  { font-size: 11px; color: var(--text-dim); }
+
+    .file-prev {
+      display: none;
+      align-items: center; gap: 12px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius);
+      padding: 12px 16px; margin-top: 10px;
+    }
+    .file-prev.vis { display: flex; }
+    .fp-icon {
+      width: 36px; height: 36px;
+      background: var(--lime-dim); border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--lime); font-size: 16px; flex-shrink: 0;
+    }
+    .fp-name { font-size: 13px; color: var(--text-hi); }
+    .fp-size { font-size: 11px; color: var(--text-dim); }
+
+    /* ── INFO SIDEBAR ── */
+    .info-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+      position: sticky; top: 24px;
+    }
+    .info-panel h3 {
+      font-family: var(--display);
+      font-size: 17px; font-weight: 700; margin-bottom: 16px;
+    }
+    .stake-box {
+      background: var(--bg-raised); border-radius: var(--radius);
+      padding: 14px; text-align: center; margin-bottom: 16px;
+    }
+    .stake-amt {
+      font-family: var(--display);
+      font-size: 30px; font-weight: 800; color: var(--lime);
+    }
+    .stake-lbl {
+      font-size: 10px; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: .1em; margin-top: 2px;
+    }
+    .info-item { display: flex; gap: 10px; margin-bottom: 14px; font-size: 12px; }
+    .ii-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--lime-dim); border: 1px solid rgba(179,255,78,.3);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--lime); font-size: 10px; flex-shrink: 0; margin-top: 1px;
+    }
+    .ii-text { color: var(--text-base); line-height: 1.5; }
+    hr.divider { border: none; border-top: 1px solid var(--border-dim); margin: 14px 0; }
+
+    /* ── CHALLENGE ── */
+    .faucet-banner {
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      background: var(--bg-card);
+      border: 1px solid rgba(77,159,255,.2);
+      border-radius: var(--radius-lg);
+      padding: 14px 20px; margin-bottom: 24px;
+    }
+    .faucet-text { font-size: 12px; color: var(--text-base); }
+    .faucet-text strong { color: var(--c-submit); }
+
+    .challenge-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .challenge-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-base);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px; align-items: center;
+      transition: all 250ms ease;
+    }
+    .challenge-card:hover { border-color: var(--border-hi); }
+
+    .ch-name {
+      font-family: var(--display);
+      font-size: 18px; font-weight: 700; color: var(--text-hi);
+      margin-bottom: 6px;
+    }
+    .ch-meta { display: flex; gap: 14px; font-size: 11px; color: var(--text-dim); }
+
+    .countdown {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      font-size: 10px; color: var(--c-pending); text-transform: uppercase; letter-spacing: .05em;
+    }
+    .cd-time { font-size: 20px; font-weight: 500; font-family: var(--mono); line-height: 1; }
+
+    .ch-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+
+    /* ── TOASTS ── */
+    #toasts {
+      position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      padding: 12px 18px; border-radius: var(--radius);
+      font-size: 13px; max-width: 380px;
+      opacity: 0; transform: translateY(10px) scale(.96);
+      transition: all 200ms ease; pointer-events: all;
+      font-family: var(--mono);
+    }
+    .toast.show { opacity:1; transform:translateY(0) scale(1); }
+    .t-info    { background:var(--bg-raised); border:1px solid var(--border-hi); color:var(--text-hi); }
+    .t-success { background:rgba(0,217,138,.1); border:1px solid rgba(0,217,138,.3); color:var(--c-safe); }
+    .t-error   { background:rgba(255,69,101,.1); border:1px solid rgba(255,69,101,.3); color:var(--c-danger); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⬡</div>
+      <div class="logo-text">Skill<span>Vault</span></div>
+    </div>
+    <div class="header-right">
+      <div class="network-badge">
+        <div class="net-dot" id="netDot"></div>
+        <span id="netName">Not connected</span>
+      </div>
+      <button class="wallet-btn" id="connectBtn" onclick="connectWallet()">
+        <div class="w-dot" id="wDot"></div>
+        <span id="wLabel">Connect Wallet</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- BALANCE BAR -->
+  <div id="balanceBar">
+    <div class="bal-pill">ETH <span id="ethBal">—</span></div>
+    <div class="bal-pill">VAULT <span id="vaultBal">—</span></div>
+  </div>
+
+  <!-- NAV TABS -->
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('browse', this)">Browse</button>
+    <button class="nav-tab" onclick="switchTab('submit', this)">Submit</button>
+    <button class="nav-tab" onclick="switchTab('challenge', this)">Challenge</button>
+  </nav>
+
+  <!-- ════════════════════════════════ -->
+  <!-- TAB: BROWSE                      -->
+  <!-- ════════════════════════════════ -->
+  <section id="tab-browse" class="section active">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Skill Registry</div>
+        <div class="section-sub" id="browseCount">Connect wallet to load</div>
+      </div>
+      <button class="btn btn-ghost" onclick="loadAllSkills()">↻ Refresh</button>
+    </div>
+
+    <div class="filter-bar">
+      <button class="chip active" onclick="applyFilter('all',this)">All</button>
+      <button class="chip" onclick="applyFilter('4',this)">✓ Published</button>
+      <button class="chip" onclick="applyFilter('2',this)">⏳ Challenge Window</button>
+      <button class="chip" onclick="applyFilter('0',this)">🔍 In Review</button>
+      <button class="chip" onclick="applyFilter('3',this)">⚡ Challenged</button>
+      <button class="chip" onclick="applyFilter('1,5',this)">✗ Rejected</button>
+    </div>
+
+    <div id="browseContent">
+      <div class="connect-prompt">
+        <h3>Connect your wallet</h3>
+        <p>Connect MetaMask to browse published AI Skills on Sepolia</p>
+        <button class="btn btn-primary" onclick="connectWallet()">Connect MetaMask</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ -->
+  <!-- TAB: SUBMIT                      -->
+  <!-- ════════════════════════════════ -->
+  <section id="tab-submit" class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Submit a Skill</div>
+        <div class="section-sub">Stake 0.01 ETH · AI Oracle review · 48h challenge window</div>
+      </div>
+    </div>
+
+    <div class="step-flow">
+      <div class="step active" id="st1"><div class="snum">1</div><span>Upload File</span></div>
+      <span class="step-arr">→</span>
+      <div class="step" id="st2"><div class="snum">2</div><span>Stake ETH</span></div>
+      <span class="step-arr">→</span>
+      <div class="step" id="st3"><div class="snum">3</div><span>Oracle Reviews</span></div>
+      <span class="step-arr">→</span>
+      <div class="step" id="st4"><div class="snum">4</div><span>Published</span></div>
+    </div>
+
+    <div class="submit-layout">
+      <div>
+        <!-- Dropzone -->
+        <div class="form-group">
+          <label class="form-label">Skill File (.md only)</label>
+          <div class="dropzone" id="dropzone">
+            <input type="file" accept=".md,text/markdown" id="fileInput" onchange="handleFileSelect(event)">
+            <div class="dz-icon">📄</div>
+            <div class="dz-text">Drop your .md file here</div>
+            <div class="dz-sub">or click to browse</div>
+          </div>
+          <div class="file-prev" id="filePrev">
+            <div class="fp-icon">📄</div>
+            <div>
+              <div class="fp-name" id="prevName"></div>
+              <div class="fp-size" id="prevSize"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skill name -->
+        <div class="form-group">
+          <label class="form-label">Skill Name</label>
+          <input type="text" class="form-input" id="skillName" placeholder="e.g. Git Commit Assistant">
+        </div>
+
+        <!-- Hash preview -->
+        <div class="form-group" id="hashGroup" style="display:none">
+          <label class="form-label">Content Hash (keccak256)</label>
+          <input type="text" class="form-input" id="hashVal" readonly
+            style="font-size:11px; color:var(--text-dim); cursor:default">
+        </div>
+
+        <button class="btn btn-primary" id="submitBtn" onclick="handleSubmit()"
+          style="width:100%; justify-content:center; padding:14px 0; font-size:13px">
+          Submit &amp; Stake 0.01 ETH →
+        </button>
+        <p style="font-size:11px; color:var(--text-dim); text-align:center; margin-top:8px">
+          MetaMask required · Sepolia testnet
+        </p>
+      </div>
+
+      <!-- Sidebar -->
+      <div class="info-panel">
+        <h3>How it works</h3>
+        <div class="stake-box">
+          <div class="stake-amt">0.01 ETH</div>
+          <div class="stake-lbl">Required Stake</div>
+        </div>
+        <div class="info-item">
+          <div class="ii-num">1</div>
+          <div class="ii-text">Your .md file is uploaded to IPFS (Pinata). Its keccak256 hash is stored on-chain.</div>
+        </div>
+        <div class="info-item">
+          <div class="ii-num">2</div>
+          <div class="ii-text">The AI Safety Oracle runs 3× Claude analysis (majority vote) across 5 threat categories.</div>
+        </div>
+        <div class="info-item">
+          <div class="ii-num">3</div>
+          <div class="ii-text">If approved, a 48-hour community challenge window opens.</div>
+        </div>
+        <div class="info-item">
+          <div class="ii-num">4</div>
+          <div class="ii-text">After 48h with no challenges, your Skill is Published and your ETH is returned.</div>
+        </div>
+        <hr class="divider">
+        <div style="font-size:11px; color:var(--text-dim); line-height:1.6">
+          ⚠️ Malicious skills lose the 0.01 ETH stake. Funds are non-recoverable once forfeited.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════ -->
+  <!-- TAB: CHALLENGE                   -->
+  <!-- ════════════════════════════════ -->
+  <section id="tab-challenge" class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Challenge Center</div>
+        <div class="section-sub">Dispute an approved skill · stake 100 VAULT to challenge</div>
+      </div>
+    </div>
+
+    <div class="faucet-banner">
+      <div class="faucet-text">
+        Need <strong>VAULT tokens</strong> to challenge? Claim 500 VAULT free from the demo faucet.
+      </div>
+      <button class="btn btn-ghost" onclick="claimFaucet()" style="font-size:11px">
+        Get 500 VAULT
+      </button>
+    </div>
+
+    <div id="challengeContent">
+      <div class="connect-prompt">
+        <h3>Connect your wallet</h3>
+        <p>Connect MetaMask to see skills in their challenge window</p>
+        <button class="btn btn-primary" onclick="connectWallet()">Connect MetaMask</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- TOASTS -->
+<div id="toasts"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIGURATION  — fill these in before using
+// ═══════════════════════════════════════════════════════════════
+const CONFIG = {
+  SKILL_VAULT_ADDRESS: "YOUR_SKILL_VAULT_ADDRESS",  // deployed SkillVault.sol
+  VAULT_TOKEN_ADDRESS: "YOUR_VAULT_TOKEN_ADDRESS",  // deployed VaultToken.sol (ERC20)
+  PINATA_JWT:          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiJkYzNkM2UxMi1iOTdhLTQxMGYtYmZjZi1hMGFlMDQwM2JmMjQiLCJlbWFpbCI6IjIyOTAyMzM3MDBAcXEuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6Ijg3YmJjYzdmZWE4ZWY3NGJmNzFiIiwic2NvcGVkS2V5U2VjcmV0IjoiNGMyNTVmZjQyYjdhYzcyZjAzNjJiNjlkZTFhMjBmMTI1ODI4YzA2NmY5ZjdlM2FkZGMxN2U5YzA3MjU3ODNhNiIsImV4cCI6MTgwNTk2NTQzMH0.D0fzt2TearSUip1bcgxAxyEGGTa20N9sKSatZaB7Mz0",            // https://app.pinata.cloud/keys
+  CHAIN_ID:            11155111,
+  CHAIN_HEX:           "0xaa36a7",
+};
+
+// ═══════════════════════════════════════════════════════════════
+// ABIs
+// ═══════════════════════════════════════════════════════════════
+const VAULT_ABI = [
+  "function submitSkill(bytes32 contentHash, string skillCID, string skillName) payable",
+  "function challenge(uint256 skillId)",
+  "function finalizeSkill(uint256 skillId)",
+  "function skills(uint256) view returns (address submitter, bytes32 contentHash, string skillCID, string skillName, uint256 ethStaked, uint256 submittedAt, uint256 approvedAt, address challenger, uint256 tokenStaked, uint8 status)",
+  "function skillCount() view returns (uint256)",
+];
+
+const TOKEN_ABI = [
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function balanceOf(address owner) view returns (uint256)",
+  "function faucet()",
+];
+
+const STATUS_LABELS = ["In Review","Rejected","Challenge Window","Challenged","Published","Revoked"];
+const STATUS_BADGE  = ["b-submit","b-danger","b-pending","b-challenged","b-safe","b-danger"];
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let provider, signer, account, vaultContract, tokenContract;
+let allSkills = [];
+let selectedFile = null;
+let activeFilter = "all";
+
+// ═══════════════════════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════════════════════
+async function connectWallet() {
+  if (!window.ethereum) {
+    toast("MetaMask not found. Please install it.", "error"); return;
+  }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+
+    const net = await provider.getNetwork();
+    if (Number(net.chainId) !== CONFIG.CHAIN_ID) {
+      toast("Switching to Sepolia…", "info");
+      try {
+        await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{chainId:CONFIG.CHAIN_HEX}] });
+        provider = new ethers.BrowserProvider(window.ethereum);
+      } catch(e) { toast("Please switch to Sepolia manually.", "error"); return; }
+    }
+
+    signer  = await provider.getSigner();
+    account = await signer.getAddress();
+
+    if (CONFIG.SKILL_VAULT_ADDRESS !== "YOUR_SKILL_VAULT_ADDRESS") {
+      vaultContract = new ethers.Contract(CONFIG.SKILL_VAULT_ADDRESS, VAULT_ABI, signer);
+      tokenContract = new ethers.Contract(CONFIG.VAULT_TOKEN_ADDRESS, TOKEN_ABI, signer);
+    }
+
+    updateWalletUI();
+    updateBalances();
+    loadAllSkills();
+
+    window.ethereum.on("accountsChanged", (accs) => {
+      if (!accs.length) { disconnectWallet(); return; }
+      account = accs[0]; updateWalletUI(); updateBalances();
+    });
+
+    toast("Connected: " + fmt(account), "success");
+  } catch(e) {
+    console.error(e);
+    toast("Connect failed: " + (e.message || e), "error");
+  }
+}
+
+function disconnectWallet() {
+  provider = signer = account = vaultContract = tokenContract = null;
+  allSkills = [];
+  updateWalletUI();
+}
+
+function updateWalletUI() {
+  const on = !!account;
+  document.getElementById("wDot").className   = "w-dot" + (on ? " on" : "");
+  document.getElementById("netDot").className = "net-dot" + (on ? " on" : "");
+  document.getElementById("wLabel").textContent  = on ? fmt(account) : "Connect Wallet";
+  document.getElementById("netName").textContent = on ? "Sepolia" : "Not connected";
+  document.getElementById("balanceBar").style.display = on ? "flex" : "none";
+}
+
+async function updateBalances() {
+  if (!account || !provider) return;
+  try {
+    const e = await provider.getBalance(account);
+    document.getElementById("ethBal").textContent = parseFloat(ethers.formatEther(e)).toFixed(4);
+  } catch(_) {}
+  try {
+    if (tokenContract) {
+      const v = await tokenContract.balanceOf(account);
+      document.getElementById("vaultBal").textContent = parseFloat(ethers.formatUnits(v,18)).toFixed(0);
+    }
+  } catch(_) {}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LOAD SKILLS
+// ═══════════════════════════════════════════════════════════════
+async function loadAllSkills() {
+  if (!vaultContract) {
+    noWalletBrowse(); noWalletChallenge(); return;
+  }
+  showSkeleton();
+  try {
+    const cnt = Number(await vaultContract.skillCount());
+    allSkills = [];
+    for (let i = 0; i < cnt; i++) {
+      try {
+        const s = await vaultContract.skills(i);
+        allSkills.push({
+          id:          i,
+          submitter:   s[0],
+          contentHash: s[1],
+          skillCID:    s[2],
+          skillName:   s[3] || `Skill #${i}`,
+          ethStaked:   s[4],
+          submittedAt: Number(s[5]),
+          approvedAt:  Number(s[6]),
+          challenger:  s[7],
+          tokenStaked: s[8],
+          status:      Number(s[9]),
+        });
+      } catch(e) { console.warn("skill "+i, e); }
+    }
+    renderBrowse(allSkills);
+    renderChallenge(allSkills);
+  } catch(e) {
+    console.error(e);
+    toast("Load failed: " + (e.reason || e.message), "error");
+    document.getElementById("browseContent").innerHTML =
+      `<div class="empty"><div class="empty-icon">⚠️</div><p>Failed to load. Check console.</p></div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER BROWSE
+// ═══════════════════════════════════════════════════════════════
+function renderBrowse(skills) {
+  const el = document.getElementById("browseContent");
+  const ct = document.getElementById("browseCount");
+  const f  = filterSkills(skills, activeFilter);
+  ct.textContent = `${f.length} skill${f.length!==1?"s":""} · ${skills.length} total`;
+  if (!f.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><p>No skills match this filter.</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="skills-grid">${f.map(skillCard).join("")}</div>`;
+}
+
+function skillCard(s) {
+  const lbl  = STATUS_LABELS[s.status] || "Unknown";
+  const bcls = STATUS_BADGE[s.status]  || "b-submit";
+  const date = new Date(s.submittedAt*1000).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  const cid  = s.skillCID;
+  const ipfs = `https://ipfs.io/ipfs/${cid}`;
+
+  let actions = "";
+  if (s.status === 4 && cid) {
+    actions = `<a href="${ipfs}" target="_blank" class="btn btn-ghost" style="font-size:11px">View on IPFS ↗</a>`;
+  } else if (s.status === 2) {
+    const now = Math.floor(Date.now()/1000);
+    const end = s.approvedAt + 48*3600;
+    actions = now >= end
+      ? `<button class="btn btn-ghost" style="font-size:11px" onclick="finalizeSkill(${s.id})">Finalize →</button>`
+      : `<span style="font-size:11px;color:var(--c-pending)">⏳ ${countdown(end-now)} left</span>`;
+  }
+
+  return `
+  <div class="skill-card" data-status="${s.status}">
+    <div class="card-top">
+      <div class="badge ${bcls}"><div class="bdot"></div>${lbl}</div>
+      <div class="skill-id">#${s.id}</div>
+    </div>
+    <div class="skill-name">${esc(s.skillName)}</div>
+    <div class="skill-meta">
+      <div class="meta-row">
+        <span class="ml">Submitter</span>
+        <span class="mv cp" title="${s.submitter}" onclick="copy('${s.submitter}')">${fmt(s.submitter)}</span>
+      </div>
+      <div class="meta-row">
+        <span class="ml">Submitted</span>
+        <span class="mv">${date}</span>
+      </div>
+      ${cid ? `<div class="meta-row">
+        <span class="ml">IPFS CID</span>
+        <span class="mv">${cid.slice(0,18)}…</span>
+      </div>` : ""}
+    </div>
+    ${actions ? `<div class="card-actions">${actions}</div>` : ""}
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER CHALLENGE
+// ═══════════════════════════════════════════════════════════════
+function renderChallenge(skills) {
+  const el  = document.getElementById("challengeContent");
+  const now = Math.floor(Date.now()/1000);
+  const ch  = skills.filter(s => s.status===2 && now < s.approvedAt+48*3600);
+
+  if (!ch.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">🛡️</div><p>No skills in their challenge window right now.<br>They appear here once the Oracle approves a submission.</p></div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="challenge-list">${ch.map(s => {
+    const end  = s.approvedAt + 48*3600;
+    const left = countdown(end - now);
+    const ipfs = `https://ipfs.io/ipfs/${s.skillCID}`;
+    return `
+    <div class="challenge-card">
+      <div>
+        <div class="ch-name">${esc(s.skillName)}</div>
+        <div class="ch-meta">
+          <span>Skill #${s.id}</span>
+          <span>By ${fmt(s.submitter)}</span>
+          ${s.skillCID ? `<span>CID: ${s.skillCID.slice(0,14)}…</span>` : ""}
+        </div>
+      </div>
+      <div class="ch-actions">
+        <div class="countdown">
+          <div class="cd-time">${left}</div>
+          <div>remaining</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          ${s.skillCID ? `<a href="${ipfs}" target="_blank" class="btn btn-ghost" style="font-size:11px">View ↗</a>` : ""}
+          <button class="btn btn-danger" style="font-size:11px" onclick="challengeSkill(${s.id})">
+            Challenge · 100 VAULT
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILTER
+// ═══════════════════════════════════════════════════════════════
+function filterSkills(skills, f) {
+  if (f === "all") return skills;
+  const nums = f.split(",").map(Number);
+  return skills.filter(s => nums.includes(s.status));
+}
+function applyFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  btn.classList.add("active");
+  renderBrowse(allSkills);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILE SELECT
+// ═══════════════════════════════════════════════════════════════
+function handleFileSelect(e) {
+  const f = e.target.files[0];
+  if (f) setFile(f);
+}
+function setFile(f) {
+  selectedFile = f;
+  document.getElementById("filePrev").className = "file-prev vis";
+  document.getElementById("prevName").textContent = f.name;
+  document.getElementById("prevSize").textContent = fmtBytes(f.size);
+  // Auto-fill name
+  if (!document.getElementById("skillName").value)
+    document.getElementById("skillName").value = f.name.replace(/\.md$/i,"").replace(/[-_]/g," ");
+  // Hash preview
+  f.text().then(txt => {
+    const h = ethers.keccak256(ethers.toUtf8Bytes(txt));
+    document.getElementById("hashVal").value = h;
+    document.getElementById("hashGroup").style.display = "block";
+  });
+}
+// Drag & drop
+const dz = document.getElementById("dropzone");
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+dz.addEventListener("drop", e => {
+  e.preventDefault(); dz.classList.remove("over");
+  const f = e.dataTransfer.files[0];
+  if (f && (f.name.endsWith(".md") || f.type.includes("markdown") || f.type === "text/plain"))
+    setFile(f);
+  else toast("Please drop a .md file", "error");
+});
+
+// ═══════════════════════════════════════════════════════════════
+// IPFS UPLOAD (Pinata)
+// ═══════════════════════════════════════════════════════════════
+async function uploadIPFS(file) {
+  if (CONFIG.PINATA_JWT === "YOUR_PINATA_JWT")
+    throw new Error("Set CONFIG.PINATA_JWT to your Pinata API key first.");
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("pinataMetadata", JSON.stringify({ name: file.name }));
+  const res = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${CONFIG.PINATA_JWT}` },
+    body: fd,
+  });
+  if (!res.ok) throw new Error("Pinata upload failed: " + await res.text());
+  return (await res.json()).IpfsHash;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SUBMIT SKILL
+// ═══════════════════════════════════════════════════════════════
+async function handleSubmit() {
+  if (!account)        { toast("Connect wallet first", "error"); return; }
+  if (!selectedFile)   { toast("Select a .md file first", "error"); return; }
+  if (!document.getElementById("skillName").value.trim())
+    { toast("Enter a skill name", "error"); return; }
+  if (!vaultContract)  { toast("Contract address not set in CONFIG", "error"); return; }
+
+  const btn = document.getElementById("submitBtn");
+  btn.disabled = true;
+  try {
+    const txt  = await selectedFile.text();
+    const hash = ethers.keccak256(ethers.toUtf8Bytes(txt));
+    const name = document.getElementById("skillName").value.trim();
+
+    toast("Uploading to IPFS via Pinata…", "info");
+    const cid = await uploadIPFS(selectedFile);
+    toast("Uploaded: " + cid.slice(0,18) + "…", "success");
+
+    toast("Confirm transaction in MetaMask…", "info");
+    const tx = await vaultContract.submitSkill(hash, cid, name, {
+      value: ethers.parseEther("0.01")
+    });
+    toast("Waiting for confirmation…", "info");
+    await tx.wait();
+    toast("✓ Skill submitted! Oracle will review shortly.", "success");
+
+    // Reset form
+    selectedFile = null;
+    document.getElementById("fileInput").value = "";
+    document.getElementById("skillName").value = "";
+    document.getElementById("filePrev").className = "file-prev";
+    document.getElementById("hashGroup").style.display = "none";
+
+    await loadAllSkills();
+    await updateBalances();
+    switchTab("browse", document.querySelector(".nav-tab"));
+  } catch(e) {
+    console.error(e);
+    toast("Error: " + (e.reason || e.message || "Transaction failed"), "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CHALLENGE SKILL
+// ═══════════════════════════════════════════════════════════════
+async function challengeSkill(id) {
+  if (!account)       { toast("Connect wallet first","error"); return; }
+  if (!vaultContract) { toast("Contract not configured","error"); return; }
+  try {
+    const stake = ethers.parseUnits("100", 18);
+    const allow = await tokenContract.allowance(account, CONFIG.SKILL_VAULT_ADDRESS);
+    if (allow < stake) {
+      toast("Approving 100 VAULT…", "info");
+      const tx = await tokenContract.approve(CONFIG.SKILL_VAULT_ADDRESS, stake);
+      await tx.wait();
+      toast("Approval confirmed", "success");
+    }
+    toast("Confirm challenge in MetaMask…", "info");
+    const tx = await vaultContract.challenge(id);
+    await tx.wait();
+    toast("✓ Challenge submitted! Oracle will re-review.", "success");
+    await loadAllSkills();
+    await updateBalances();
+  } catch(e) {
+    console.error(e);
+    toast("Error: " + (e.reason || e.message), "error");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FINALIZE SKILL
+// ═══════════════════════════════════════════════════════════════
+async function finalizeSkill(id) {
+  if (!account) { toast("Connect wallet first","error"); return; }
+  try {
+    toast("Finalizing…","info");
+    const tx = await vaultContract.finalizeSkill(id);
+    await tx.wait();
+    toast("✓ Skill published!","success");
+    await loadAllSkills();
+  } catch(e) {
+    toast("Error: " + (e.reason || e.message),"error");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FAUCET
+// ═══════════════════════════════════════════════════════════════
+async function claimFaucet() {
+  if (!account)       { toast("Connect wallet first","error"); connectWallet(); return; }
+  if (!tokenContract) { toast("Contract not configured","error"); return; }
+  try {
+    toast("Claiming 500 VAULT…","info");
+    const tx = await tokenContract.faucet();
+    await tx.wait();
+    toast("✓ 500 VAULT received!","success");
+    await updateBalances();
+  } catch(e) {
+    toast("Error: " + (e.reason || e.message),"error");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById("tab-"+name).classList.add("active");
+  if (btn) btn.classList.add("active");
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function fmt(addr)   { return addr ? addr.slice(0,6)+"…"+addr.slice(-4) : "—"; }
+function esc(s)      { const d=document.createElement("div"); d.appendChild(document.createTextNode(s||"")); return d.innerHTML; }
+function fmtBytes(b) { return b<1024 ? b+" B" : b<1048576 ? (b/1024).toFixed(1)+" KB" : (b/1048576).toFixed(1)+" MB"; }
+function countdown(s) {
+  if (s<=0) return "Expired";
+  const h=Math.floor(s/3600), m=Math.floor((s%3600)/60);
+  return h>0 ? `${h}h ${m}m` : `${m}m`;
+}
+function copy(t) {
+  navigator.clipboard.writeText(t).then(()=>toast("Address copied","success")).catch(()=>toast("Copy failed","error"));
+}
+
+function toast(msg, type="info") {
+  const c = document.getElementById("toasts");
+  const t = document.createElement("div");
+  t.className = `toast t-${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>t.classList.add("show")));
+  setTimeout(()=>{t.classList.remove("show"); setTimeout(()=>t.remove(),250);}, 3500);
+}
+
+function showSkeleton() {
+  document.getElementById("browseContent").innerHTML =
+    `<div class="sk-grid">${Array(4).fill(0).map(()=>`
+      <div class="sk-card">
+        <div class="sk-line" style="width:80px;height:18px;margin-bottom:16px"></div>
+        <div class="sk-line" style="width:65%;height:20px;margin-bottom:8px"></div>
+        <div class="sk-line" style="width:45%;height:13px"></div>
+      </div>`).join("")}</div>`;
+}
+
+function noWalletBrowse() {
+  document.getElementById("browseContent").innerHTML =
+    `<div class="connect-prompt">
+      <h3>Connect your wallet</h3>
+      <p>Connect MetaMask to browse AI Skills</p>
+      <button class="btn btn-primary" onclick="connectWallet()">Connect MetaMask</button>
+    </div>`;
+  document.getElementById("browseCount").textContent = "Connect wallet to load";
+}
+
+function noWalletChallenge() {
+  document.getElementById("challengeContent").innerHTML =
+    `<div class="connect-prompt">
+      <h3>Connect your wallet</h3>
+      <p>Connect MetaMask to see skills in their challenge window</p>
+      <button class="btn btn-primary" onclick="connectWallet()">Connect MetaMask</button>
+    </div>`;
+}
+
+// Auto-reconnect
+window.addEventListener("load", () => {
+  if (window.ethereum?.selectedAddress) connectWallet();
+});
+
+// Refresh challenge countdowns every 60s
+setInterval(() => { if (allSkills.length) renderChallenge(allSkills); }, 60000);
+</script>
+</body>
+</html>
