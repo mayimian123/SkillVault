@@ -718,10 +718,10 @@ const CONFIG = {
 // ABIs
 // ═══════════════════════════════════════════════════════════════
 const VAULT_ABI = [
-  "function submitSkill(bytes32 contentHash, string skillCID, string skillName) payable",
+  "function submitSkill(string cid, string name) payable",
   "function challenge(uint256 skillId)",
   "function finalizeSkill(uint256 skillId)",
-  "function skills(uint256) view returns (address submitter, bytes32 contentHash, string skillCID, string skillName, uint256 ethStaked, uint256 submittedAt, uint256 approvedAt, address challenger, uint256 tokenStaked, uint8 status)",
+  "function skills(uint256) view returns (address submitter, string cid, string name, uint8 status, uint256 ethStake, uint256 submittedAt, uint256 reviewedAt, uint256 challengedAt, address challenger)",
   "function skillCount() view returns (uint256)",
 ];
 
@@ -729,11 +729,12 @@ const TOKEN_ABI = [
   "function approve(address spender, uint256 amount) returns (bool)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function balanceOf(address owner) view returns (uint256)",
-  "function faucet()",
+  "function claimFaucet()",
 ];
 
-const STATUS_LABELS = ["In Review","Rejected","Challenge Window","Challenged","Published","Revoked"];
-const STATUS_BADGE  = ["b-submit","b-danger","b-pending","b-challenged","b-safe","b-danger"];
+// Status enum: 0=Submitted, 1=Approved, 2=Challenged, 3=Published, 4=Rejected, 5=Revoked
+const STATUS_LABELS = ["Submitted","Approved","Challenged","Published","Rejected","Revoked"];
+const STATUS_BADGE  = ["b-submit","b-pending","b-challenged","b-safe","b-danger","b-danger"];
 
 // ═══════════════════════════════════════════════════════════════
 // STATE
@@ -831,17 +832,16 @@ async function loadAllSkills() {
       try {
         const s = await vaultContract.skills(i);
         allSkills.push({
-          id:          i,
-          submitter:   s[0],
-          contentHash: s[1],
-          skillCID:    s[2],
-          skillName:   s[3] || `Skill #${i}`,
-          ethStaked:   s[4],
-          submittedAt: Number(s[5]),
-          approvedAt:  Number(s[6]),
-          challenger:  s[7],
-          tokenStaked: s[8],
-          status:      Number(s[9]),
+          id:           i,
+          submitter:    s[0],
+          skillCID:     s[1],
+          skillName:    s[2] || `Skill #${i}`,
+          status:       Number(s[3]),
+          ethStaked:    s[4],
+          submittedAt:  Number(s[5]),
+          reviewedAt:   Number(s[6]),
+          challengedAt: Number(s[7]),
+          challenger:   s[8],
         });
       } catch(e) { console.warn("skill "+i, e); }
     }
@@ -878,11 +878,11 @@ function skillCard(s) {
   const ipfs = `https://ipfs.io/ipfs/${cid}`;
 
   let actions = "";
-  if (s.status === 4 && cid) {
+  if (s.status === 3 && cid) {
     actions = `<a href="${ipfs}" target="_blank" class="btn btn-ghost" style="font-size:11px">View on IPFS ↗</a>`;
-  } else if (s.status === 2) {
+  } else if (s.status === 1) {
     const now = Math.floor(Date.now()/1000);
-    const end = s.approvedAt + 48*3600;
+    const end = s.reviewedAt + 48*3600;
     actions = now >= end
       ? `<button class="btn btn-ghost" style="font-size:11px" onclick="finalizeSkill(${s.id})">Finalize →</button>`
       : `<span style="font-size:11px;color:var(--c-pending)">⏳ ${countdown(end-now)} left</span>`;
@@ -919,7 +919,7 @@ function skillCard(s) {
 function renderChallenge(skills) {
   const el  = document.getElementById("challengeContent");
   const now = Math.floor(Date.now()/1000);
-  const ch  = skills.filter(s => s.status===2 && now < s.approvedAt+48*3600);
+  const ch  = skills.filter(s => s.status===1 && now < s.reviewedAt+48*3600);
 
   if (!ch.length) {
     el.innerHTML = `<div class="empty"><div class="empty-icon">🛡️</div><p>No skills in their challenge window right now.<br>They appear here once the Oracle approves a submission.</p></div>`;
@@ -927,7 +927,7 @@ function renderChallenge(skills) {
   }
 
   el.innerHTML = `<div class="challenge-list">${ch.map(s => {
-    const end  = s.approvedAt + 48*3600;
+    const end  = s.reviewedAt + 48*3600;
     const left = countdown(end - now);
     const ipfs = `https://ipfs.io/ipfs/${s.skillCID}`;
     return `
@@ -1045,7 +1045,7 @@ async function handleSubmit() {
     toast("Uploaded: " + cid.slice(0,18) + "…", "success");
 
     toast("Confirm transaction in MetaMask…", "info");
-    const tx = await vaultContract.submitSkill(hash, cid, name, {
+    const tx = await vaultContract.submitSkill(cid, name, {
       value: ethers.parseEther("0.01")
     });
     toast("Waiting for confirmation…", "info");
@@ -1121,7 +1121,7 @@ async function claimFaucet() {
   if (!tokenContract) { toast("Contract not configured","error"); return; }
   try {
     toast("Claiming 500 VAULT…","info");
-    const tx = await tokenContract.faucet();
+    const tx = await tokenContract.claimFaucet();
     await tx.wait();
     toast("✓ 500 VAULT received!","success");
     await updateBalances();
