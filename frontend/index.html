@@ -257,13 +257,13 @@
     .skill-card:hover { border-color: var(--border-hi); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
     .skill-card:hover::before { opacity: 1; }
 
-    .skill-card[data-status="4"]::before { background: var(--c-safe); }
-    .skill-card[data-status="4"]:hover  { box-shadow: 0 8px 32px rgba(0,217,138,.07); }
-    .skill-card[data-status="2"]::before { background: var(--c-pending); }
-    .skill-card[data-status="1"]::before,
+    .skill-card[data-status="3"]::before { background: var(--c-safe); }
+    .skill-card[data-status="3"]:hover  { box-shadow: 0 8px 32px rgba(0,217,138,.07); }
+    .skill-card[data-status="1"]::before { background: var(--c-pending); }
+    .skill-card[data-status="4"]::before,
     .skill-card[data-status="5"]::before { background: var(--c-danger); }
     .skill-card[data-status="0"]::before { background: var(--c-submit); }
-    .skill-card[data-status="3"]::before { background: var(--c-challenge); }
+    .skill-card[data-status="2"]::before { background: var(--c-challenge); }
 
     .card-top {
       display: flex; align-items: flex-start; justify-content: space-between;
@@ -558,11 +558,11 @@
 
     <div class="filter-bar">
       <button class="chip active" onclick="applyFilter('all',this)">All</button>
-      <button class="chip" onclick="applyFilter('4',this)">✓ Published</button>
-      <button class="chip" onclick="applyFilter('2',this)">⏳ Challenge Window</button>
+      <button class="chip" onclick="applyFilter('3',this)">✓ Published</button>
+      <button class="chip" onclick="applyFilter('1',this)">⏳ Challenge Window</button>
       <button class="chip" onclick="applyFilter('0',this)">🔍 In Review</button>
-      <button class="chip" onclick="applyFilter('3',this)">⚡ Challenged</button>
-      <button class="chip" onclick="applyFilter('1,5',this)">✗ Rejected</button>
+      <button class="chip" onclick="applyFilter('2',this)">⚡ Challenged</button>
+      <button class="chip" onclick="applyFilter('4,5',this)">✗ Rejected</button>
     </div>
 
     <div id="browseContent">

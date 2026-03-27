@@ -23,7 +23,7 @@ const deepseek = new OpenAI({
 // ═══════════════════════════════════════════════════════════════
 const ABI = [
   "event SkillSubmitted(uint256 indexed id, address indexed submitter, string cid, string name)",
-  "event SkillChallenged(uint256 indexed id, address indexed challenger)",
+  "event SkillChallenged(uint256 indexed id, address indexed challenger, string reason)",
   "function skills(uint256) view returns (address submitter, string cid, string name, uint8 status, uint256 ethStake, uint256 submittedAt, uint256 reviewedAt, uint256 challengedAt, address challenger)",
   "function resolveInitialReview(uint256 id, bool safe) external",
   "function resolveChallenge(uint256 id, bool malicious) external",
