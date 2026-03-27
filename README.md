@@ -2,7 +2,7 @@
 
 **Decentralized Safety Vetting & Publishing Platform for AI Agent Skills**
 
-> A stake-based arbitration system on Ethereum that vets AI Skills for safety before publishing, using economic incentives and an AI Safety Oracle.
+> A stake-based arbitration system on Ethereum that vets AI Skills for malicious content before publishing, using economic incentives and an AI Safety Oracle.
 
 **IS4302 — Ethereum DApp Group Project**
 
@@ -10,13 +10,16 @@
 
 ## Overview
 
-AI Agent Skills (like those used in Claude Code) are prompt instruction files (`.md`) that, once installed, gain indirect control over a user's filesystem, network, and shell. Currently, there is no trustworthy safety vetting mechanism — anyone can publish Skills containing malicious Prompt Injection, data exfiltration instructions, or permission abuse.
+AI Agent Skills (`.md` files that extend Claude Code's behaviour) gain indirect access to a user's filesystem, network, and shell. There is currently no trustworthy safety vetting mechanism — anyone can publish Skills containing Prompt Injection, data exfiltration instructions, or permission abuse.
 
 SkillVault solves this with a decentralized, stake-based arbitration system:
 - **Submitters** stake 0.01 ETH to publish a Skill
-- An **AI Safety Oracle** (Node.js + Claude API) automatically reviews the Skill
+- An **AI Safety Oracle** (Node.js + DeepSeek API, 3-source majority vote) automatically reviews the Skill
 - **Community challengers** can stake 100 VAULT tokens to dispute a passing review
 - Economic incentives ensure honest behavior from all parties
+
+**Live demo:** https://skill-vault-eta.vercel.app
+**Network:** Sepolia testnet
 
 ---
 
@@ -26,29 +29,37 @@ SkillVault solves this with a decentralized, stake-based arbitration system:
 
 | Contract | Standard | Description |
 |---|---|---|
-| `VaultToken.sol` | ERC20 (OpenZeppelin) | Governance/staking token (VAULT). Includes a demo faucet (`500 VAULT` per address). |
-| `SkillVault.sol` | Custom | Core logic: skill submission, Oracle review, challenge mechanism, fund escrow. |
+| `VaultToken.sol` | ERC20 (OpenZeppelin) | Governance/staking token (VAULT). Includes a one-time faucet (500 VAULT per address). |
+| `SkillVault.sol` | Custom | Core logic: skill submission, Oracle review, 48h challenge window, fund escrow and distribution. |
+
+### Deployed Addresses (Sepolia)
+
+| Contract | Address |
+|---|---|
+| VaultToken | `0xc4B145bA488De9B365c63e12341e4542C585A366` |
+| SkillVault | `0xA34D55f3604dE23450a18209903565730202226A` |
 
 ### Skill Status State Machine
 
 ```
-[Submitted] ──Oracle Initial Review──► Rejected  (submitter loses ETH)
-                                    └► Approved  ──48h window──► Published (submitter gets ETH back)
-                                                  │ challenged
-                                                  ▼
-                                             [Challenged] ──Oracle Re-review──► Revoked   (submitter loses ETH, challenger rewarded)
-                                                                              └► Published (challenger loses VAULT, submitter rewarded)
+[Submitted] ──Oracle review──► Rejected   (submitter loses ETH stake)
+                             └► Approved  ──48h window──► Published (submitter gets ETH back)
+                                           │ challenged
+                                           ▼
+                                      [Challenged] ──Oracle re-review──► Revoked   (submitter slashed, challenger rewarded)
+                                                                       └► Published (challenger slashed, submitter rewarded)
 ```
 
 ### AI Safety Oracle
 
 An off-chain Node.js service that:
-1. Listens for `SkillSubmitted` / `SkillChallenged` events
-2. Fetches the Skill content from the backend and verifies its `keccak256` hash against the on-chain `contentHash`
-3. Calls Claude API 3 times (majority vote 2/3) for safety analysis
-4. Writes the result back on-chain via `resolveInitialReview()` or `resolveChallenge()`
+1. Listens for `SkillSubmitted` / `SkillChallenged` events on-chain
+2. Fetches the Skill content from IPFS via the stored CID
+3. Calls DeepSeek API with 3 independent sources (V3 × 2 + R1 × 1) in parallel
+4. Takes an internal majority vote (2/3) across the 3 sources
+5. Writes the result back on-chain via `resolveInitialReview()` or `resolveChallenge()`
 
-**5 safety check categories:** Data Exfiltration, Prompt Injection, Permission Abuse, Social Engineering, Obfuscation
+**5 safety check categories:** Data Exfiltration (A), Prompt Injection (B), Permission Abuse (C), Social Engineering (D), Obfuscation (E)
 
 ---
 
@@ -57,16 +68,21 @@ An off-chain Node.js service that:
 ```
 SkillVault/
 ├── contracts/
-│   ├── VaultToken.sol       # ERC20 token
-│   └── SkillVault.sol       # Core dApp logic
+│   ├── contracts/
+│   │   ├── VaultToken.sol       # ERC20 staking token with faucet
+│   │   └── SkillVault.sol       # Core dApp state machine
+│   ├── scripts/
+│   │   └── deploy.js            # Hardhat deploy script
+│   ├── test/
+│   │   └── test.js              # Contract tests
+│   └── hardhat.config.js
 ├── oracle/
-│   ├── index.js             # Oracle event listener + Claude API integration
+│   ├── index.js                 # Oracle: event listener + DeepSeek AI integration
 │   └── .env.example
-├── backend/
-│   ├── index.js             # Express server for off-chain Skill content storage
-│   └── .env.example
-├── test/
-│   └── SkillVault.test.js   # Contract tests
+├── frontend/
+│   ├── index.html               # Single-file dApp (ethers.js v6 + Pinata IPFS)
+│   └── README.md
+├── GUIDE.md                     # Step-by-step user testing guide
 └── README.md
 ```
 
@@ -77,57 +93,57 @@ SkillVault/
 ### Prerequisites
 
 - Node.js >= 18
-- [Remix IDE](https://remix.ethereum.org) or Hardhat
-- MetaMask wallet with Sepolia ETH ([faucet](https://sepoliafaucet.com))
-- Anthropic API key
+- MetaMask wallet with Sepolia ETH ([Google faucet](https://cloud.google.com/application/web3/faucet/ethereum/sepolia))
+- Alchemy RPC key ([alchemy.com](https://alchemy.com))
+- DeepSeek API key ([platform.deepseek.com](https://platform.deepseek.com))
 
-### 1. Deploy Contracts (Remix)
-
-1. Open `contracts/VaultToken.sol` and `contracts/SkillVault.sol` in Remix
-2. Compile with Solidity `0.8.x`
-3. Deploy `VaultToken.sol` first — note the deployed address
-4. Deploy `SkillVault.sol` with constructor args:
-   - `_token`: VaultToken address
-   - `_oracle`: your Oracle wallet address
-   - `_feeRecipient`: fee recipient address
-
-### 2. Run the Backend (Skill Content Storage)
+### 1. Deploy Contracts
 
 ```bash
-cd backend
+cd contracts
 cp .env.example .env
-# Fill in: PORT
+# Fill in: RPC_URL, PRIVATE_KEY, ORACLE_ADDRESS
 npm install
-node index.js
+npx hardhat run scripts/deploy.js --network sepolia
 ```
 
-### 3. Run the Oracle
+Constructor parameters set automatically via environment variables:
+- `_vault`: deployed VaultToken address (auto-set by script)
+- `_oracle`: `ORACLE_ADDRESS` from `.env`
+- `_feeRecipient`: deployer wallet (default)
+
+### 2. Run the Oracle
 
 ```bash
 cd oracle
 cp .env.example .env
-# Fill in: RPC_URL, ORACLE_PRIVATE_KEY, CONTRACT_ADDRESS, ANTHROPIC_API_KEY, BACKEND_URL
+# Fill in: RPC_URL, ORACLE_PRIVATE_KEY, SKILL_VAULT_ADDRESS, DEEPSEEK_API_KEY
 npm install
 node index.js
 ```
 
-### 4. Interact via Remix
+### 3. Open the Frontend
 
-Use Remix's deployed contract UI to call:
-- `submitSkill(bytes32 hash, string cid, string name)` — attach 0.01 ETH
-- `challenge(uint256 id)` — requires 100 VAULT approved first
-- `finalizeSkill(uint256 id)` — after 48h challenge window
+Fill in contract addresses in `frontend/index.html` (CONFIG block), then:
+
+```bash
+cd frontend
+python3 -m http.server 8080
+# open http://localhost:8080
+```
+
+Or use the live deployment: https://skill-vault-eta.vercel.app
 
 ---
 
 ## Economic Incentives
 
-| Participant | Honest incentive | Penalty for abuse |
+| Participant | Incentive for honest behaviour | Penalty for abuse |
 |---|---|---|
-| Skill submitter | Get 0.01 ETH back after safe review + platform listing | Lose 0.01 ETH if malicious |
-| Challenger | Win 0.0095 ETH for catching a malicious Skill | Lose 100 VAULT for incorrect challenge |
-| Platform | 5% fee on forfeited stakes | — |
-| Oracle | No economic interest; address is `immutable` | Cannot be replaced or bribed |
+| Skill submitter | Recovers 0.01 ETH stake after passing review + skill published | Loses 0.01 ETH if skill is malicious |
+| Challenger | Wins ~0.0095 ETH for catching a malicious skill | Loses 100 VAULT for a failed challenge |
+| Platform | 5% fee on all forfeited stakes | — |
+| Oracle | Designated `immutable` address; no economic interest | Cannot be replaced or bribed |
 
 ---
 
@@ -135,25 +151,24 @@ Use Remix's deployed contract UI to call:
 
 | Layer | Technology |
 |---|---|
-| Smart Contracts | Solidity 0.8.x + OpenZeppelin ERC20 |
-| Dev / Demo | Remix IDE + Sepolia testnet |
-| AI Safety Oracle | Node.js + ethers.js + Anthropic Claude API (`claude-sonnet-4-6`) |
-| Content Storage | Node.js + Express |
-| Frontend | Static mockups (Figma / PPT) |
+| Smart Contracts | Solidity 0.8.24 + OpenZeppelin ERC20 |
+| Contract Tooling | Hardhat + Sepolia testnet |
+| AI Safety Oracle | Node.js + ethers.js v6 + DeepSeek API (V3 × 2, R1 × 1) |
+| Content Storage | IPFS via Pinata |
+| Frontend | Vanilla JS + ethers.js v6 (CDN), deployed on Vercel |
 
 ---
 
 ## Environment Variables
 
-See `.env.example` files in `oracle/` and `backend/`. **Never commit `.env` files.**
+See `.env.example` files in `oracle/` and `contracts/`. **Never commit `.env` files.**
 
-Key variables for the Oracle:
+Oracle (`oracle/.env`):
 ```
-RPC_URL=           # Sepolia RPC endpoint (e.g. Alchemy/Infura)
-ORACLE_PRIVATE_KEY= # Wallet private key for the Oracle signer
-CONTRACT_ADDRESS=  # Deployed SkillVault contract address
-ANTHROPIC_API_KEY= # Claude API key
-BACKEND_URL=       # URL of the Express backend
+RPC_URL=           # Sepolia RPC endpoint (Alchemy/Infura)
+ORACLE_PRIVATE_KEY= # Private key of the designated oracle wallet
+SKILL_VAULT_ADDRESS= # Deployed SkillVault contract address
+DEEPSEEK_API_KEY=   # DeepSeek API key
 ```
 
 ---

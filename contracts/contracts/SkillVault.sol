@@ -62,6 +62,12 @@ contract SkillVault {
         feeRecipient = _feeRecipient;
     }
 
+    /**
+     * @dev Submits a new Skill for AI safety review. Caller must send exactly ETH_STAKE.
+     * @param cid  IPFS content identifier pointing to the Skill's .md file
+     * @param name Human-readable name for the Skill
+     * @return id  The assigned Skill ID
+     */
     function submitSkill(string calldata cid, string calldata name) external payable returns (uint256 id) {
         require(msg.value >= ETH_STAKE, "Need more ETH stake");
 
