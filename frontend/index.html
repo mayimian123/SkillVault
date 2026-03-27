@@ -707,8 +707,8 @@
 // CONFIGURATION  — fill these in before using
 // ═══════════════════════════════════════════════════════════════
 const CONFIG = {
-  SKILL_VAULT_ADDRESS: "0xA34D55f3604dE23450a18209903565730202226A",
-  VAULT_TOKEN_ADDRESS: "0xc4B145bA488De9B365c63e12341e4542C585A366",
+  SKILL_VAULT_ADDRESS: "0xcbEAffb3A84B57b0250EE859394df03b10Ff51C5",
+  VAULT_TOKEN_ADDRESS: "0x2D9bBFdE3FF4401Ae0d61d681c6069351459fAb4",
   PINATA_JWT:          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiJkYzNkM2UxMi1iOTdhLTQxMGYtYmZjZi1hMGFlMDQwM2JmMjQiLCJlbWFpbCI6IjIyOTAyMzM3MDBAcXEuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6Ijg3YmJjYzdmZWE4ZWY3NGJmNzFiIiwic2NvcGVkS2V5U2VjcmV0IjoiNGMyNTVmZjQyYjdhYzcyZjAzNjJiNjlkZTFhMjBmMTI1ODI4YzA2NmY5ZjdlM2FkZGMxN2U5YzA3MjU3ODNhNiIsImV4cCI6MTgwNTk2NTQzMH0.D0fzt2TearSUip1bcgxAxyEGGTa20N9sKSatZaB7Mz0",            // https://app.pinata.cloud/keys
   CHAIN_ID:            11155111,
   CHAIN_HEX:           "0xaa36a7",
@@ -719,7 +719,7 @@ const CONFIG = {
 // ═══════════════════════════════════════════════════════════════
 const VAULT_ABI = [
   "function submitSkill(string cid, string name) payable",
-  "function challenge(uint256 skillId)",
+  "function challenge(uint256 skillId, string reason)",
   "function finalizeSkill(uint256 skillId)",
   "function skills(uint256) view returns (address submitter, string cid, string name, uint8 status, uint256 ethStake, uint256 submittedAt, uint256 reviewedAt, uint256 challengedAt, address challenger)",
   "function skillCount() view returns (uint256)",
@@ -945,11 +945,15 @@ function renderChallenge(skills) {
           <div class="cd-time">${left}</div>
           <div>remaining</div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:4px">
-          ${s.skillCID ? `<a href="${ipfs}" target="_blank" class="btn btn-ghost" style="font-size:11px">View ↗</a>` : ""}
-          <button class="btn btn-danger" style="font-size:11px" onclick="challengeSkill(${s.id})">
-            Challenge · 100 VAULT
-          </button>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+          <input id="reason-${s.id}" type="text" placeholder="Why do you think this skill is malicious? (optional)"
+            style="font-size:11px;padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-card);color:var(--text-base);width:100%;box-sizing:border-box;font-family:inherit"/>
+          <div style="display:flex;gap:8px">
+            ${s.skillCID ? `<a href="${ipfs}" target="_blank" class="btn btn-ghost" style="font-size:11px">View ↗</a>` : ""}
+            <button class="btn btn-danger" style="font-size:11px" onclick="challengeSkill(${s.id})">
+              Challenge · 100 VAULT
+            </button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -1085,8 +1089,10 @@ async function challengeSkill(id) {
       await tx.wait();
       toast("Approval confirmed", "success");
     }
+    const reasonInput = document.getElementById(`reason-${id}`);
+    const reason = reasonInput ? reasonInput.value.trim() : "";
     toast("Confirm challenge in MetaMask…", "info");
-    const tx = await vaultContract.challenge(id);
+    const tx = await vaultContract.challenge(id, reason);
     await tx.wait();
     toast("✓ Challenge submitted! Oracle will re-review.", "success");
     await loadAllSkills();

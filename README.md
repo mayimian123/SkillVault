@@ -36,8 +36,8 @@ SkillVault solves this with a decentralized, stake-based arbitration system:
 
 | Contract | Address |
 |---|---|
-| VaultToken | `0xc4B145bA488De9B365c63e12341e4542C585A366` |
-| SkillVault | `0xA34D55f3604dE23450a18209903565730202226A` |
+| VaultToken | `0x2D9bBFdE3FF4401Ae0d61d681c6069351459fAb4` |
+| SkillVault | `0xcbEAffb3A84B57b0250EE859394df03b10Ff51C5` |
 
 ### Skill Status State Machine
 

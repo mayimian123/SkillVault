@@ -63,11 +63,14 @@ const SOURCES = [
 // ═══════════════════════════════════════════════════════════════
 // SAFETY PROMPT
 // ═══════════════════════════════════════════════════════════════
-function buildPrompt(skillContent, focusNote) {
+function buildPrompt(skillContent, focusNote, challengeReason) {
+  const reasonBlock = challengeReason
+    ? `\n[CHALLENGER'S REASON]\nA community member flagged this Skill with the following concern:\n"${challengeReason}"\nPay special attention to this concern in your analysis.\n`
+    : "";
   return `You are an AI Skill security auditor. Analyze the following Claude Code Skill file (.md) for malicious content.
 
 ${focusNote}
-
+${reasonBlock}
 [SKILL CONTENT]
 ${skillContent}
 
@@ -120,12 +123,12 @@ async function fetchFromIPFS(cid) {
 // ═══════════════════════════════════════════════════════════════
 // SINGLE AI SOURCE CALL
 // ═══════════════════════════════════════════════════════════════
-async function analyzeWithSource(skillContent, source) {
+async function analyzeWithSource(skillContent, source, challengeReason) {
   try {
     const params = {
       model: source.model,
       max_tokens: 1024,
-      messages: [{ role: "user", content: buildPrompt(skillContent, source.focus) }],
+      messages: [{ role: "user", content: buildPrompt(skillContent, source.focus, challengeReason) }],
     };
     // deepseek-reasoner does not support temperature
     if (source.temperature !== null) {
@@ -154,10 +157,11 @@ async function analyzeWithSource(skillContent, source) {
 // ═══════════════════════════════════════════════════════════════
 // CORE REVIEW LOGIC
 // ═══════════════════════════════════════════════════════════════
-async function handleReview(skillId, skillCID, isChallenge, contract) {
+async function handleReview(skillId, skillCID, isChallenge, contract, challengeReason) {
   const reviewType = isChallenge ? "Re-review (Challenge)" : "Initial Review";
   console.log(`\n──────────────────────────────────────`);
   console.log(`Skill #${skillId} — ${reviewType}`);
+  if (challengeReason) console.log(`  Challenger's reason: "${challengeReason}"`);
   console.log(`──────────────────────────────────────`);
 
   try {
@@ -167,7 +171,7 @@ async function handleReview(skillId, skillCID, isChallenge, contract) {
 
     // 2. Run 3 sources (V3 × 2 + R1 × 1) in parallel
     console.log(`  [2/3] Running 3-source parallel analysis...`);
-    const results = await Promise.all(SOURCES.map(s => analyzeWithSource(content, s)));
+    const results = await Promise.all(SOURCES.map(s => analyzeWithSource(content, s, challengeReason)));
 
     // 3. Internal majority vote (2 out of 3)
     const maliciousVotes = results.filter(r => r.isMalicious).length;
@@ -229,13 +233,13 @@ async function main() {
     await handleReview(Number(id), cid, false, contract);
   });
 
-  // Skill challenged → re-review
-  contract.on("SkillChallenged", async (id) => {
+  // Skill challenged → re-review (with challenger's reason)
+  contract.on("SkillChallenged", async (id, challenger, reason) => {
     const key = `challenge-${Number(id)}`;
     if (processed.has(key)) return;
     processed.add(key);
     const skill = await contract.skills(Number(id));
-    await handleReview(Number(id), skill[1], true, contract); // skill[1] = cid
+    await handleReview(Number(id), skill[1], true, contract, reason); // skill[1] = cid
   });
 
   process.on("SIGINT", () => {
@@ -248,3 +252,7 @@ main().catch(err => {
   console.error("Fatal error:", err);
   process.exit(1);
 });
+
+// Keep-alive HTTP server for Render
+const http = require("http");
+http.createServer((_, res) => res.end("Oracle running")).listen(process.env.PORT || 3000);

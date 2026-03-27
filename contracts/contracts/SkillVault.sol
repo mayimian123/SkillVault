@@ -42,7 +42,7 @@ contract SkillVault {
 
     event SkillSubmitted(uint256 indexed id, address indexed submitter, string cid, string name);
     event SkillReviewed(uint256 indexed id, bool safe);
-    event SkillChallenged(uint256 indexed id, address indexed challenger);
+    event SkillChallenged(uint256 indexed id, address indexed challenger, string reason);
     event SkillPublished(uint256 indexed id);
     event SkillRejected(uint256 indexed id);
     event SkillRevoked(uint256 indexed id);
@@ -110,12 +110,14 @@ contract SkillVault {
     }
 
     /**
-     * @dev Challenges an approved skill.
-     * @param id The ID of the skill to challenge
+     * @dev Challenges an approved skill within the 48h window.
+     * @param id     The ID of the skill to challenge
+     * @param reason The challenger's explanation of why they believe the skill is malicious.
+     *               This reason is passed to the Oracle for consideration during re-review.
      */
-    function challenge(uint256 id) external {
+    function challenge(uint256 id, string calldata reason) external {
         Skill storage skill = _getSkill(id);
-    
+
         require(skill.status == Status.Approved, "Not challengeable");
         require(
             block.timestamp <= skill.reviewedAt + CHALLENGE_WINDOW,
@@ -128,7 +130,7 @@ contract SkillVault {
         skill.challenger = msg.sender;
         skill.challengedAt = block.timestamp;
 
-        emit SkillChallenged(id, msg.sender);
+        emit SkillChallenged(id, msg.sender, reason);
     }
     
     /**
