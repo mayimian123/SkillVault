@@ -46,9 +46,10 @@
 ### Challenge（质疑某个 Skill）
 
 1. 点 **CHALLENGE** tab，可以看到所有处于 48 小时窗口期的 Skill
-2. 点击某个 Skill 的 **Challenge · 100 VAULT** 按钮
-3. MetaMask 确认（花费 100 VAULT）
-4. AI Oracle 重新审核，判定质疑是否成立
+2. 在输入框里填写你认为该 Skill 有问题的原因（可选，但有助于 Oracle 重新审核）
+3. 点击 **Challenge · 100 VAULT** 按钮
+4. MetaMask 确认（花费 100 VAULT）
+5. AI Oracle 会结合你的理由重新审核，判定质疑是否成立
 
 ### 查看所有 Skill
 
@@ -73,7 +74,7 @@
 
 | 合约 | 地址 |
 |------|------|
-| SkillVault | `0xA34D55f3604dE23450a18209903565730202226A` |
-| VaultToken | `0xc4B145bA488De9B365c63e12341e4542C585A366` |
+| SkillVault | `0xcbEAffb3A84B57b0250EE859394df03b10Ff51C5` |
+| VaultToken | `0x2D9bBFdE3FF4401Ae0d61d681c6069351459fAb4` |
 
 在 Sepolia Etherscan 查看：https://sepolia.etherscan.io
