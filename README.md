@@ -44,10 +44,10 @@ SkillVault solves this with a decentralized, stake-based arbitration system:
 ```
 [Submitted] ──Oracle review──► Rejected   (submitter loses ETH stake)
                              └► Approved  ──48h window──► Published (submitter gets ETH back)
-                                           │ challenged
+                                           │ challenge(id, reason)
                                            ▼
-                                      [Challenged] ──Oracle re-review──► Revoked   (submitter slashed, challenger rewarded)
-                                                                       └► Published (challenger slashed, submitter rewarded)
+                                      [Challenged] ──Oracle re-review (with reason)──► Revoked   (submitter slashed, challenger rewarded)
+                                                                                     └► Published (challenger slashed, submitter rewarded)
 ```
 
 ### AI Safety Oracle
@@ -56,8 +56,9 @@ An off-chain Node.js service that:
 1. Listens for `SkillSubmitted` / `SkillChallenged` events on-chain
 2. Fetches the Skill content from IPFS via the stored CID
 3. Calls DeepSeek API with 3 independent sources (V3 × 2 + R1 × 1) in parallel
-4. Takes an internal majority vote (2/3) across the 3 sources
-5. Writes the result back on-chain via `resolveInitialReview()` or `resolveChallenge()`
+4. On re-review (challenge), injects the **challenger's reason** into each AI prompt as additional context
+5. Takes an internal majority vote (2/3) across the 3 sources
+6. Writes the result back on-chain via `resolveInitialReview()` or `resolveChallenge()`
 
 **5 safety check categories:** Data Exfiltration (A), Prompt Injection (B), Permission Abuse (C), Social Engineering (D), Obfuscation (E)
 
