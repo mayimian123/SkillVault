@@ -30,7 +30,7 @@ SkillVault solves this with a decentralized, stake-based arbitration system:
 | Contract | Standard | Description |
 |---|---|---|
 | `VaultToken.sol` | ERC20 (OpenZeppelin) | Governance/staking token (VAULT). Includes a one-time faucet (500 VAULT per address). |
-| `SkillVault.sol` | Custom | Core logic: skill submission, Oracle review, 48h challenge window, fund escrow and distribution. |
+| `SkillVault.sol` | UUPS (OpenZeppelin) | Core logic: skill submission, Oracle review, 48h challenge window, fund escrow and distribution. |
 
 ### Deployed Addresses (Sepolia)
 
@@ -82,8 +82,10 @@ SkillVault/
 ├── oracle/
 │   ├── index.js                 # Oracle: event listener + DeepSeek AI integration
 │   └── .env.example
-├── frontend/
-│   ├── index.html               # Single-file dApp (ethers.js v6 + Pinata IPFS)
+├── frontend/                    # dApp (ethers.js v6 + Pinata IPFS)
+│   ├── index.html               
+│   ├── app.js
+│   ├── style.css      
 │   └── README.md
 ├── GUIDE.md                     # Step-by-step user testing guide
 └── README.md
@@ -127,7 +129,7 @@ node index.js
 
 ### 3. Open the Frontend
 
-Fill in contract addresses in `frontend/index.html` (CONFIG block), then:
+Fill in contract addresses in `frontend/app.js` (CONFIG block), then:
 
 ```bash
 cd frontend
