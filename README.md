@@ -139,7 +139,7 @@ python3 -m http.server 8080
 
 Or use the live deployment: 
 http://52.221.246.166:5000/
-# https://skill-vault-eta.vercel.app
+
 
 ---
 
