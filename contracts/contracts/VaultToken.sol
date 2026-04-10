@@ -3,10 +3,12 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-/// @title VaultToken
-/// @notice ERC20 governance and staking token used in the SkillVault platform.
-///         Challengers must stake VAULT tokens to dispute an approved Skill.
-///         Includes a one-time faucet so demo participants can obtain tokens freely.
+
+/**
+    @title VaultToken
+    @notice ERC20 governance and staking token used in the SkillVault platform.
+    Challengers must stake VAULT tokens to dispute an approved Skill. Includes a one-time faucet so demo participants can obtain tokens freely.  
+ */
 contract VaultToken is ERC20 {
     uint256 public constant TOTAL_SUPPLY = 1_000_000 ether; // 1 million VAULT minted at deploy
     uint256 public constant FAUCET_AMOUNT = 500 ether;      // 500 VAULT per faucet claim

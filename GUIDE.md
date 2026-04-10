@@ -36,12 +36,11 @@
 1. 打开 https://skill-vault-eta.vercel.app
 2. 点右上角 **Connect Wallet** 连接 MetaMask
 3. 点 **SUBMIT** tab
-4. 把你的 `.md` 文件拖进去（或点击上传）
+4. 把你的 Skill 文件拖进去（或点击上传）
 5. 填写 Skill 名称
 6. 点 **Submit Skill** → MetaMask 确认（花费 0.01 ETH）
 7. 等待 AI Oracle 审核（约 1 分钟）→ 状态变为 **Approved** 或 **Rejected**
 
-> Skill 必须是 `.md` 格式的文件
 
 ### Challenge（质疑某个 Skill）
 
@@ -74,7 +73,10 @@
 
 | 合约 | 地址 |
 |------|------|
-| SkillVault | `0xcbEAffb3A84B57b0250EE859394df03b10Ff51C5` |
-| VaultToken | `0x2D9bBFdE3FF4401Ae0d61d681c6069351459fAb4` |
+| SkillVault (Proxy)| `0x8175615f8181b3342A090a158c9D736D98f669Ac` |
+| SkillVault (Implementation)| `0x53A5CA8DDfcC257D13214B146Ea196AFE0C10eB5` |
+
+Use the `SkillVault` proxy address for the frontend and oracle when the contract is deployed with upgradeability.
+| VaultToken | `0x3B9CE1Fcf3765abE7b8160C55DbFD6091D8eeF40` |
 
 在 Sepolia Etherscan 查看：https://sepolia.etherscan.io

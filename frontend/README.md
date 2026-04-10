@@ -1,7 +1,7 @@
 # SkillVault Frontend
 
 A single-file dApp frontend — no build step, no Node.js needed.
-Just open `index.html` in a browser with MetaMask installed.
+Just open in a browser with MetaMask installed.
 
 ---
 
@@ -9,7 +9,7 @@ Just open `index.html` in a browser with MetaMask installed.
 
 ### Step 1 — Fill in the contract addresses
 
-Open `index.html` and find the `CONFIG` block near the top of the `<script>` section:
+Open `app.js` and find the `CONFIG` block near the top of the `<script>` section:
 
 ```javascript
 const CONFIG = {
@@ -21,6 +21,7 @@ const CONFIG = {
 ```
 
 Replace `YOUR_SKILL_VAULT_ADDRESS` and `YOUR_VAULT_TOKEN_ADDRESS` with the deployed contract addresses on Sepolia.
+If `SkillVault` is deployed as an upgradeable contract, use the proxy address here.
 
 ### Step 2 — Get a Pinata API key (for IPFS upload)
 
@@ -28,7 +29,7 @@ Replace `YOUR_SKILL_VAULT_ADDRESS` and `YOUR_VAULT_TOKEN_ADDRESS` with the deplo
 2. Navigate to **API Keys** → **New Key**
 3. Enable **pinFileToIPFS** permission
 4. Copy the **JWT** token
-5. Paste it into `CONFIG.PINATA_JWT` in `index.html`
+5. Paste it into `CONFIG.PINATA_JWT` in `app.js`
 
 ---
 

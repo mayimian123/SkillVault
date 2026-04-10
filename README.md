@@ -36,8 +36,9 @@ SkillVault solves this with a decentralized, stake-based arbitration system:
 
 | Contract | Address |
 |---|---|
-| VaultToken | `0x2D9bBFdE3FF4401Ae0d61d681c6069351459fAb4` |
-| SkillVault | `0xcbEAffb3A84B57b0250EE859394df03b10Ff51C5` |
+| VaultToken | `0x3B9CE1Fcf3765abE7b8160C55DbFD6091D8eeF40` |
+| SkillVault (Proxy)| `0x8175615f8181b3342A090a158c9D736D98f669Ac` |
+| SkillVault (Implementation)| `0x53A5CA8DDfcC257D13214B146Ea196AFE0C10eB5` |
 
 ### Skill Status State Machine
 
@@ -59,6 +60,7 @@ An off-chain Node.js service that:
 4. On re-review (challenge), injects the **challenger's reason** into each AI prompt as additional context
 5. Takes an internal majority vote (2/3) across the 3 sources
 6. Writes the result back on-chain via `resolveInitialReview()` or `resolveChallenge()`
+
 
 **5 safety check categories:** Data Exfiltration (A), Prompt Injection (B), Permission Abuse (C), Social Engineering (D), Obfuscation (E)
 
@@ -144,7 +146,7 @@ Or use the live deployment: https://skill-vault-eta.vercel.app
 | Skill submitter | Recovers 0.01 ETH stake after passing review + skill published | Loses 0.01 ETH if skill is malicious |
 | Challenger | Wins ~0.0095 ETH for catching a malicious skill | Loses 100 VAULT for a failed challenge |
 | Platform | 5% fee on all forfeited stakes | — |
-| Oracle | Designated `immutable` address; no economic interest | Cannot be replaced or bribed |
+| Oracle | Designated address; no economic interest | Cannot be bribed |
 
 ---
 
@@ -168,7 +170,7 @@ Oracle (`oracle/.env`):
 ```
 RPC_URL=           # Sepolia RPC endpoint (Alchemy/Infura)
 ORACLE_PRIVATE_KEY= # Private key of the designated oracle wallet
-SKILL_VAULT_ADDRESS= # Deployed SkillVault contract address
+SKILL_VAULT_ADDRESS= # Deployed SkillVault proxy address
 DEEPSEEK_API_KEY=   # DeepSeek API key
 ```
 

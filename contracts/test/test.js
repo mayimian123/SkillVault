@@ -1,5 +1,5 @@
 const { expect } = require("chai");
-const { ethers, network } = require("hardhat");
+const { ethers, network, upgrades } = require("hardhat");
 
 describe("SkillVault System", function () {
   let vault, skill;
@@ -37,10 +37,13 @@ describe("SkillVault System", function () {
     await vault.waitForDeployment();
 
     const Skill = await ethers.getContractFactory("SkillVault");
-    skill = await Skill.deploy(
-      await vault.getAddress(),
-      owner.address,
-      feeRecipient.address
+    skill = await upgrades.deployProxy(
+      Skill,
+      [await vault.getAddress(), owner.address, feeRecipient.address, owner.address],
+      {
+        initializer: "initialize",
+        kind: "uups",
+      }
     );
     await skill.waitForDeployment();
 
@@ -195,6 +198,36 @@ describe("SkillVault System", function () {
     ).to.be.revertedWith("Not challengeable");
   });
 
+  it("retrieves the challenge reason from the SkillChallenged event log", async () => {
+    await skill.connect(user).submitSkill("ipfs://safe", "Safe Skill", {
+      value: ethStake,
+    });
+    await skill.connect(owner).resolveInitialReview(0, true);
+
+    const reason = "contains suspicious hidden payload";
+    await vault.connect(challenger).approve(await skill.getAddress(), challengeStake);
+    const tx = await skill.connect(challenger).challenge(0, reason);
+    const receipt = await tx.wait();
+
+    const stored = await skill.skills(0);
+    expect(stored.challenger).to.equal(challenger.address);
+    expect(stored.reason).to.equal(undefined);
+
+    const challengeEvent = receipt.logs
+      .map((log) => {
+        try {
+          return skill.interface.parseLog(log);
+        } catch {
+          return null;
+        }
+      })
+      .find((parsed) => parsed && parsed.name === "SkillChallenged");
+
+    expect(challengeEvent.args.id).to.equal(0n);
+    expect(challengeEvent.args.challenger).to.equal(challenger.address);
+    expect(challengeEvent.args.reason).to.equal(reason);
+  });
+
   it("resolveChallenge only works in challenged state", async () => {
     await skill.connect(user).submitSkill("ipfs://safe", "Safe Skill", {
       value: ethStake,
@@ -257,5 +290,22 @@ describe("SkillVault System", function () {
     expect(submitterBalance).to.equal(faucetAmount + netAmount(challengeStake));
     expect(challengerBalance).to.equal(faucetAmount - challengeStake);
     expect(feeBalance).to.equal(platformFee(challengeStake));
+  });
+
+  it("preserves state after upgrading the proxy implementation", async () => {
+    await skill.connect(user).submitSkill("ipfs://cid-upgrade", "Upgradeable Skill", {
+      value: ethStake,
+    });
+
+    const proxyAddress = await skill.getAddress();
+    const SkillV2 = await ethers.getContractFactory("SkillVaultV2");
+    const upgraded = await upgrades.upgradeProxy(proxyAddress, SkillV2, {
+      kind: "uups",
+    });
+
+    const stored = await upgraded.skills(0);
+    expect(stored.submitter).to.equal(user.address);
+    expect(stored.cid).to.equal("ipfs://cid-upgrade");
+    expect(await upgraded.version()).to.equal("v2");
   });
 });
